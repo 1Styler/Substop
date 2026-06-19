@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SubStop - Abonnements-Slukeren</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0B0F19">
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SubStop">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            spaceBlack: '#0B0F19',
+            slateDark: '#1E2538',
+            neonPink: '#FF2E93',
+            neonGreen: '#00FF66',
+          },
+          animation: {
+            'pulse-fast': 'pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'cyber-glow': 'cyberGlow 1.5s ease-in-out infinite alternate',
+            'alert-flash': 'alertFlash 1s step-end infinite',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes cyberGlow {
+      from { box-shadow: 0 0 5px #FF2E93, inset 0 0 5px #FF2E93; border-color: #FF2E93; }
+      to { box-shadow: 0 0 20px #FF2E93, inset 0 0 10px #FF2E93; border-color: #ff66b2; }
+    }
+    @keyframes alertFlash {
+      0%, 100% { border-color: #FF2E93; box-shadow: 0 0 15px rgba(255,46,147,0.4); }
+      50% { border-color: #ef4444; box-shadow: 0 0 0px transparent; }
+    }
+  </style>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-spaceBlack text-white min-h-screen font-sans pb-32 selection:bg-neonPink selection:text-white overflow-x-hidden">
+
+  <header class="max-w-md mx-auto pt-6 px-4 text-center">
+    <div class="relative inline-block mb-2">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-16 h-16 mx-auto">
+        <circle cx="50" cy="50" r="45" fill="#1E2538" stroke="#FF2E93" stroke-width="2"/>
+        <rect x="25" y="36" width="50" height="32" rx="4" fill="#FF2E93" opacity="0.85" transform="rotate(-5 50 50)"/>
+        <g stroke="#00FF66" stroke-width="3.5" stroke-linecap="round" fill="none">
+          <line x1="22" y1="28" x2="68" y2="58" />
+          <line x1="22" y1="72" x2="68" y2="42" />
+        </g>
+      </svg>
+    </div>
+    
+    <h1 class="text-3xl font-extrabold tracking-wider bg-gradient-to-r from-neonPink to-purple-500 bg-clip-text text-transparent">
+      SubStop
+    </h1>
+    <p class="text-xs tracking-widest text-slate-400 uppercase mt-0.5">Abonnements-Slukeren</p>
+    
+    <div class="mt-2">
+      <span id="userStatusBadge" class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border bg-slateDark border-slate-700">
+        Laster status...
+      </span>
+    </div>
+  </header>
+
+  <section id="view-dashboard" class="max-w-md mx-auto px-4 mt-6 app-view">
+    <div id="shockCard" class="bg-gradient-to-br from-slateDark to-slate-900 border border-slate-800 p-5 rounded-2xl shadow-2xl mb-6 relative overflow-hidden transition-all duration-300">
+      <div class="absolute -right-6 -bottom-6 opacity-10 text-7xl select-none">💸</div>
+      
+      <div id="budgetAlertHeader" class="hidden mb-2 text-[10px] font-black uppercase tracking-widest bg-red-600/20 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-md text-center animate-pulse">
+        ⚠️ Budsjett-tak sprengt! Tid for å kutte!
+      </div>
+
+      <h2 id="monthlyShockTitle" class="text-xl font-bold text-white mb-1">
+        Du svir av <span class="text-neonPink text-2xl font-black">0</span> kr hver måned! 💸
+      </h2>
+      <p id="yearlyShockSub" class="text-sm text-slate-400">
+        Det blir <span class="text-neonGreen font-semibold">0</span> kr i året. Sponsar du direktørene?
+      </p>
+      
+      <button onclick="runUsageCheck()" class="mt-4 w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-neonGreen font-bold uppercase py-2 px-3 rounded-lg transition flex items-center justify-center gap-2">
+        <i data-lucide="shield-alert" class="w-4 h-4"></i> Kjør Bruks-sjekk (90 dager) 🤨
+      </button>
+    </div>
+
+    <div class="mb-4 flex items-center justify-between">
+      <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+        <i data-lucide="calendar" class="w-4 h-4 text-neonPink"></i> Tidslinjen (Neste trekk)
+      </h3>
+      <span id="subCount" class="text-xs bg-slateDark border border-slate-800 px-2.5 py-0.5 rounded-full text-slate-400">
+        0 aktive
+      </span>
+    </div>
+
+    <div id="timelineContainer" class="space-y-3">
+      </div>
+  </section>
+
+  <section id="view-achievements" class="max-w-md mx-auto px-4 mt-6 app-view hidden">
+    <div class="bg-slateDark/40 border border-slate-800 p-4 rounded-xl mb-4">
+      <h3 class="text-base font-bold text-neonPink mb-1 flex items-center gap-2">
+        <i data-lucide="trophy" class="w-5 h-5 text-neonPink"></i> Troférommet
+      </h3>
+      <p class="text-xs text-slate-400">Jo flinkere du er til å jakte rabatter og kutte sløseri, jo flere meritter låser du opp.</p>
+    </div>
+
+    <div id="achievementsGrid" class="space-y-3">
+      </div>
+  </section>
+
+  <section id="view-quickadd" class="max-w-md mx-auto px-4 mt-6 app-view hidden">
+    <div class="bg-slateDark/40 border border-slate-800 p-4 rounded-xl mb-4">
+      <h3 class="text-base font-bold text-neonGreen mb-1 flex items-center gap-2">
+        <i data-lucide="zap" class="w-5 h-5"></i> Industrielle Pengesluk
+      </h3>
+      <p class="text-xs text-slate-400">Velg en kategori og trykk på en tjeneste for å konfigurere pakken din.</p>
+    </div>
+
+    <div class="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none snap-x">
+      <button onclick="filterQuickAdd('Alle', this)" class="snap-mini px-4 py-1.5 bg-white/10 text-white rounded-full text-xs font-bold whitespace-nowrap transition border border-white/10 select-category-btn">🔥 Alle</button>
+      <button onclick="filterQuickAdd('Underholdning', this)" class="snap-mini px-4 py-1.5 bg-slateDark text-slate-400 rounded-full text-xs font-bold whitespace-nowrap transition border border-transparent select-category-btn">🎬 Streaming & Låt</button>
+      <button onclick="filterQuickAdd('Trening', this)" class="snap-mini px-4 py-1.5 bg-slateDark text-slate-400 rounded-full text-xs font-bold whitespace-nowrap transition border border-transparent select-category-btn">🏋️ Trening</button>
+      <button onclick="filterQuickAdd('Teknologi', this)" class="snap-mini px-4 py-1.5 bg-slateDark text-slate-400 rounded-full text-xs font-bold whitespace-nowrap transition border border-transparent select-category-btn">☁️ Sky & AI</button>
+      <button onclick="filterQuickAdd('Nyheter', this)" class="snap-mini px-4 py-1.5 bg-slateDark text-slate-400 rounded-full text-xs font-bold whitespace-nowrap transition border border-transparent select-category-btn">📰 Aviser & Media</button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3" id="quickAddGrid">
+      </div>
+  </section>
+
+  <section id="view-settings" class="max-w-md mx-auto px-4 mt-6 app-view hidden">
+    <div class="space-y-5">
+      
+      <div class="bg-slateDark border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-neonGreen mb-1.5 flex items-center gap-1.5">
+          <i data-lucide="sliders" class="w-4 h-4"></i> Månedlig Budsjett-vakt
+        </h3>
+        <p class="text-xs text-slate-400 mb-4">Sett din personlige smertegrense. Vi slår full alarm hvis faste utgifter krysser denne linja.</p>
+        
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <input type="number" id="budgetCapInput" placeholder="F.eks. 500" class="w-full bg-spaceBlack border border-slate-700 rounded-lg pl-3 pr-12 py-2 text-white text-sm focus:outline-none focus:border-neonGreen">
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">kr</span>
+          </div>
+          <button onclick="saveBudgetCap()" class="bg-neonGreen hover:bg-emerald-500 text-spaceBlack font-bold text-xs uppercase px-4 rounded-lg transition tracking-wider">
+            Lagre
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-slateDark border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-cyan-400 mb-1.5 flex items-center gap-1.5">
+          <i data-lucide="database" class="w-4 h-4"></i> Datakontroll & Backup
+        </h3>
+        <p class="text-xs text-slate-400 mb-4">Siden alt lagres trygt lokalt på telefonen din, bør du eksportere en sikkerhetskopi om du skal bytte nettleser.</p>
+        
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="exportData()" class="bg-spaceBlack hover:bg-slate-800 border border-slate-700 text-xs font-bold py-2.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 text-white">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Eksporter data
+          </button>
+          <button onclick="importData()" class="bg-spaceBlack hover:bg-slate-800 border border-slate-700 text-xs font-bold py-2.5 px-3 rounded-lg transition flex items-center justify-center gap-1.5 text-white">
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i> Importer data
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <div id="tierModal" class="fixed inset-0 bg-spaceBlack/95 backdrop-blur-md flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-slateDark border border-slate-800 w-full max-w-sm rounded-2xl p-6 shadow-2xl relative">
+      <button onclick="closeTierModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-6 h-6"></i>
+      </button>
+      
+      <div id="tierModalHeader" class="text-center mb-6">
+        </div>
+
+      <div id="tierOptionsContainer" class="space-y-2.5">
+        </div>
+    </div>
+  </div>
+
+
+  <div id="subModal" class="fixed inset-0 bg-spaceBlack/90 backdrop-blur-md flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-slateDark border border-slate-800 w-full max-w-sm rounded-2xl p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+      <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-6 h-6"></i>
+      </button>
+      
+      <h3 id="modalTitle" class="text-xl font-bold mb-4 flex items-center gap-2 text-neonGreen">
+        <i data-lucide="plus-circle" class="w-5 h-5"></i> Nytt Abonnement
+      </h3>
+      
+      <form id="subForm" onsubmit="saveSubscription(event)" class="space-y-4">
+        <div class="bg-spaceBlack/50 p-3 rounded-lg border border-slate-800">
+          <label class="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Avtaletype</label>
+          <div class="grid grid-cols-1 gap-1">
+            <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="subType" value="Fast" checked onchange="updateFormFields()" class="accent-neonGreen"> Fast avtale</label>
+            <label class="flex items-center gap-2 text-sm cursor-pointer text-neonPink"><input type="radio" name="subType" value="Prøveperiode" onchange="updateFormFields()" class="accent-neonPink"> Gratis prøveperiode</label>
+            <label class="flex items-center gap-2 text-sm cursor-pointer text-cyan-400"><input type="radio" name="subType" value="Engangs" onchange="updateFormFields()" class="accent-cyan-400"> Engangsbetaling / Fornyelse</label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Tjeneste / Tittel</label>
+          <input type="text" id="subTitle" required placeholder="F.eks. Netflix, Sats, iCloud" class="w-full bg-spaceBlack border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neonPink">
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Pris</label>
+            <input type="number" id="subPrice" required min="0" step="0.01" placeholder="149" class="w-full bg-spaceBlack border border-slate-700 rounded-lg px-2 py-2 text-white text-sm focus:outline-none focus:border-neonPink">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Valuta</label>
+            <select id="subCurrency" class="w-full bg-spaceBlack border border-slate-700 rounded-lg px-1 py-2 text-white text-sm focus:outline-none focus:border-neonPink">
+              <option value="NOK">NOK (kr)</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Kategori</label>
+            <select id="subCategory" class="w-full bg-spaceBlack border border-slate-700 rounded-lg px-1 py-2 text-white text-sm focus:outline-none focus:border-neonPink">
+              <option value="Underholdning">🎬 Film/Låt</option>
+              <option value="Trening">🏋️ Trening</option>
+              <option value="Teknologi">☁️ Tek/Sky</option>
+              <option value="Nyheter">📰 Avis/Media</option>
+              <option value="Annet">📦 Annet</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3" id="timingGrid">
+          <div id="intervalWrapper">
+            <label class="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Intervall</label>
+            <select id="subInterval" class="w-full bg-spaceBlack border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neonPink">
+              <option value="Månedlig">Månedlig</option>
+              <option value="Årlig">Årlig</option>
+            </select>
+          </div>
+          <div id="dateWrapper">
+            <label id="dateLabel" class="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Neste trekkdato</label>
+            <input type="date" id="subDate" required class="w-full bg-spaceBlack border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neonPink">
+          </div>
+        </div>
+
+        <div class="bg-spaceBlack/30 p-3 rounded-lg border border-slate-800">
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-xs font-bold uppercase tracking-wide text-slate-400">Angre-skalaen 💔</label>
+            <span id="regretVal" class="text-xs font-black text-neonPink bg-slateDark px-2 py-0.5 rounded">3</span>
+          </div>
+          <input type="range" id="subRegret" min="1" max="5" value="3" oninput="document.getElementById('regretVal').innerText = this.value" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-neonPink">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Hvem spleiser du med? (Valgfri)</label>
+          <input type="text" id="subSharedWith" placeholder="F.eks. Ola, Samboer" class="w-full bg-spaceBlack border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neonPink">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Rabatt (Valgfri)</label>
+            <input type="text" id="subDiscount" placeholder="F.eks: 3 mnd gratis" class="w-full bg-spaceBlack border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neonPink">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Oppsigelsesnotat</label>
+            <input type="text" id="subNotes" placeholder="Nettside -> profil..." class="w-full bg-spaceBlack border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neonPink">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full bg-neonGreen hover:bg-emerald-500 text-spaceBlack font-bold py-2.5 rounded-lg transition text-sm uppercase tracking-wider shadow-lg">
+          Lagre Abonnement
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="customConfirmModal" class="fixed inset-0 bg-spaceBlack/95 backdrop-blur-md flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-slateDark border border-slate-800 w-full max-w-xs rounded-2xl p-6 shadow-2xl text-center border-t-4 border-t-neonPink">
+      <div class="text-neonPink text-4xl mb-2">⚠️</div>
+      <h3 class="text-lg font-bold text-white mb-1">Er du helt sikker?</h3>
+      <p class="text-xs text-slate-400 mb-5">Vil du fjerne denne avtalen permanent?</p>
+      <div class="flex gap-3">
+        <button onclick="closeConfirmModal()" class="flex-1 bg-slate-800 text-slate-300 font-bold py-2 rounded-lg text-xs uppercase tracking-wider">Avbryt</button>
+        <button onclick="executeDelete()" class="flex-1 bg-neonPink text-white font-bold py-2 rounded-lg text-xs uppercase tracking-wider shadow-lg">Ja, slett!</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[390px] h-[64px] bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-between px-2 shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-40 select-none">
+    <div id="liquid-indicator" class="absolute top-1.5 bottom-1.5 left-[6px] w-[68px] bg-white/10 border border-white/5 rounded-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] transition-all duration-500 cubic-bezier(0.25, 1, 0.5, 1)"></div>
+    
+    <button onclick="switchTab('dashboard', this)" class="relative flex-1 h-full flex flex-col items-center justify-center gap-0.5 text-white z-10 focus:outline-none">
+      <i data-lucide="home" class="w-4 h-4 stroke-[2.5]"></i>
+      <span class="text-[9px] font-bold tracking-wide">Status</span>
+    </button>
+    
+    <button onclick="switchTab('achievements', this)" class="relative flex-1 h-full flex flex-col items-center justify-center gap-0.5 text-slate-400 z-10 focus:outline-none">
+      <i data-lucide="trophy" class="w-4 h-4 stroke-[2]"></i>
+      <span class="text-[9px] font-bold tracking-wide">Troféer</span>
+    </button>
+
+    <button onclick="openModal()" class="relative flex-1 h-full flex flex-col items-center justify-center text-neonGreen transition-all focus:outline-none">
+      <div class="w-9 h-9 bg-neonGreen/10 border border-neonGreen/20 rounded-full flex items-center justify-center">
+        <i data-lucide="plus" class="w-5 h-5 stroke-[3]"></i>
+      </div>
+    </button>
+    
+    <button onclick="switchTab('quickadd', this)" class="relative flex-1 h-full flex flex-col items-center justify-center gap-0.5 text-slate-400 z-10 focus:outline-none">
+      <i data-lucide="zap" class="w-4 h-4 stroke-[2]"></i>
+      <span class="text-[9px] font-bold tracking-wide">Maler</span>
+    </button>
+
+    <button onclick="switchTab('settings', this)" class="relative flex-1 h-full flex flex-col items-center justify-center gap-0.5 text-slate-400 z-10 focus:outline-none">
+      <i data-lucide="settings" class="w-4 h-4 stroke-[2]"></i>
+      <span class="text-[9px] font-bold tracking-wide">Inst.</span>
+    </button>
+  </nav>
+
+
+  <script>
+    let subscriptions = JSON.parse(localStorage.getItem('substop_subscriptions')) || [];
+    let budgetCap = parseFloat(localStorage.getItem('substop_budget_cap')) || 0;
+    
+    let editingSubId = null;
+    let subToDeleteId = null;
+    let selectedTemplateIndex = null;
+    let currentFilterCategory = 'Alle';
+
+    const exchangeRates = { NOK: 1, USD: 10.60, EUR: 11.45, GBP: 13.65 };
+    const currencySymbols = { NOK: 'kr', USD: '$', EUR: '€', GBP: '£' };
+
+    const quickAddTemplates = [
+      {
+        title: 'Netflix', emoji: '🎬', category: 'Underholdning',
+        tiers: [
+          { name: 'Med Reklame (1080p)', price: 89, currency: 'NOK', interval: 'Månedlig', notes: 'Gå til netflix.com -> Konto -> Avbryt medlemskap.' },
+          { name: 'Standard (1080p, 2 enheter)', price: 139, currency: 'NOK', interval: 'Månedlig', notes: 'Gå til netflix.com -> Konto -> Avbryt.' },
+          { name: 'Premium (4K, 4 enheter)', price: 189, currency: 'NOK', interval: 'Månedlig', notes: 'Kanseller i profilinnstillinger på nett.' }
+        ]
+      },
+      {
+        title: 'Spotify', emoji: '🎵', category: 'Underholdning',
+        tiers: [
+          { name: '🎓 Student (Krever SheerID)', price: 69, currency: 'NOK', interval: 'Månedlig', notes: '🚨 OBS: Må re-verifiseres årlig via SheerID, ellers hopper du automatisk opp til fullpris (139 kr)!' },
+          { name: 'Individual', price: 139, currency: 'NOK', interval: 'Månedlig', notes: 'spotify.no -> Logg inn -> Se planer -> Avbryt Premium.' },
+          { name: 'Duo (2 kontoer)', price: 189, currency: 'NOK', interval: 'Månedlig', notes: 'Hovedkontoeier må kansellere på nettsiden.' },
+          { name: 'Family (6 kontoer)', price: 229, currency: 'NOK', interval: 'Månedlig', notes: 'Kanseller på kontooversikten via nettleser.' }
+        ]
+      },
+      {
+        title: 'Disney+', emoji: '🏰', category: 'Underholdning',
+        tiers: [
+          { name: 'Standard med reklame', price: 59, currency: 'NOK', interval: 'Månedlig', notes: 'Kanseller via profil -> Konto -> Abonnement.' },
+          { name: 'Standard (Uten reklame)', price: 89, currency: 'NOK', interval: 'Månedlig', notes: 'Avslutt i app-innstillinger eller på disneyplus.com.' },
+          { name: 'Premium (4K / Atmos)', price: 119, currency: 'NOK', interval: 'Månedlig', notes: 'Husk å si opp før neste fornyelse på nett.' }
+        ]
+      },
+      {
+        title: 'YouTube Premium', emoji: '📺', category: 'Underholdning',
+        tiers: [
+          { name: '🎓 Student (Verifisering)', price: 89, currency: 'NOK', interval: 'Månedlig', notes: 'Krever årlig verifisering av studentstatus via SheerID/Google.' },
+          { name: 'Individual', price: 149, currency: 'NOK', interval: 'Månedlig', notes: 'Profilbilde -> Kjøp og medlemskap -> Deaktiver.' }
+        ]
+      },
+      {
+        title: 'SATS', emoji: '🏋️', category: 'Trening',
+        tiers: [
+          { name: '🎓 Studentmedlemskap (Region)', price: 599, currency: 'NOK', interval: 'Månedlig', notes: 'Husk å registrere/vise gyldig studentbevis i appen/resepsjonen regelmessig for å unngå prishopp.' },
+          { name: 'Full Tilgang (Regional)', price: 749, currency: 'NOK', interval: 'Månedlig', notes: 'Må sies opp digitalt innen utgangen av måneden.' }
+        ]
+      },
+      {
+        title: 'EVO Fitness', emoji: '🏃', category: 'Trening',
+        tiers: [
+          { name: '🎓 Studentrabatt (Ordinær)', price: 399, currency: 'NOK', interval: 'Månedlig', notes: 'Ingen binding. Sjekk om du må sende oppdatert bevis til kundeservice.' },
+          { name: 'Ordinært Medlemskap', price: 449, currency: 'NOK', interval: 'Månedlig', notes: 'Ingen bindingstid. Logg inn på evofitness.no og avslutt.' }
+        ]
+      },
+      {
+        title: 'ChatGPT Plus', emoji: '🤖', category: 'Teknologi',
+        tiers: [
+          { name: 'Plus Individual', price: 20, currency: 'USD', interval: 'Månedlig', notes: 'Klikk på profil nede til venstre -> My Plan -> Cancel subscription.' }
+        ]
+      },
+      {
+        title: 'Adobe Creative Cloud', emoji: '🖌️', category: 'Teknologi',
+        tiers: [
+          { name: '🎓 Student/Lærer (Alle apper)', price: 220, currency: 'NOK', interval: 'Månedlig', notes: '🚨 GIGANTISK FARE: Prisen dobles ofte etter år 1! Sjekk bindingstid på Adobe Account for å unngå bruddgebyr.' },
+          { name: 'All Apps (Ordinær)', price: 760, currency: 'NOK', interval: 'Månedlig', notes: 'Si opp på Adobe Account Portal.' }
+        ]
+      },
+      {
+        title: 'VG+', emoji: '📰', category: 'Nyheter',
+        tiers: [
+          { name: '🎓 VG+ Student', price: 79, currency: 'NOK', interval: 'Månedlig', notes: 'Verifisert via Schibsted-kontoen din (koblet mot Studentkortet/Mecenat).' },
+          { name: 'VG+ Standard', price: 149, currency: 'NOK', interval: 'Månedlig', notes: 'vg.no -> Meny -> Min Profil -> Mine abonnement -> Stopp.' }
+        ]
+      }
+    ];
+
+    const timelineContainer = document.getElementById('timelineContainer');
+    const monthlyShockTitle = document.getElementById('monthlyShockTitle');
+    const yearlyShockSub = document.getElementById('yearlyShockSub');
+    const userStatusBadge = document.getElementById('userStatusBadge');
+    const subCountBadge = document.getElementById('subCount');
+    const subModal = document.getElementById('subModal');
+    const tierModal = document.getElementById('tierModal');
+    const customConfirmModal = document.getElementById('customConfirmModal');
+    const subForm = document.getElementById('subForm');
+    const modalTitle = document.getElementById('modalTitle');
+    const quickAddGrid = document.getElementById('quickAddGrid');
+    const achievementsGrid = document.getElementById('achievementsGrid');
+    const shockCard = document.getElementById('shockCard');
+    const budgetAlertHeader = document.getElementById('budgetAlertHeader');
+
+    function switchTab(tabId, buttonEl) {
+      document.querySelectorAll('.app-view').forEach(view => view.classList.add('hidden'));
+      document.getElementById(`view-${tabId}`).classList.remove('hidden');
+
+      const buttons = buttonEl.parentElement.querySelectorAll('button');
+      buttons.forEach(btn => { btn.classList.add('text-slate-400'); btn.classList.remove('text-white'); });
+      buttonEl.classList.remove('text-slate-400'); buttonEl.classList.add('text-white');
+
+      const indicator = document.getElementById('liquid-indicator');
+      if (tabId === 'dashboard') { indicator.style.left = '6px'; indicator.style.width = '68px'; }
+      else if (tabId === 'achievements') { indicator.style.left = '78px'; indicator.style.width = '68px'; }
+      else if (tabId === 'quickadd') { indicator.style.left = '244px'; indicator.style.width = '68px'; }
+      else if (tabId === 'settings') { indicator.style.left = '316px'; indicator.style.width = '68px'; }
+    }
+
+    function filterQuickAdd(category, element) {
+      currentFilterCategory = category;
+      document.querySelectorAll('.select-category-btn').forEach(btn => {
+        btn.classList.remove('bg-white/10', 'text-white', 'border-white/10');
+        btn.classList.add('bg-slateDark', 'text-slate-400', 'border-transparent');
+      });
+      element.classList.add('bg-white/10', 'text-white', 'border-white/10');
+      element.classList.remove('bg-slateDark', 'text-slate-400', 'border-transparent');
+      renderQuickAddTemplates();
+    }
+
+    function renderQuickAddTemplates() {
+      quickAddGrid.innerHTML = '';
+      quickAddTemplates.forEach((tpl, index) => {
+        if (currentFilterCategory !== 'Alle' && tpl.category !== currentFilterCategory) return;
+
+        const item = document.createElement('div');
+        item.className = "bg-slateDark border border-slate-800 hover:border-neonGreen/40 p-4 rounded-xl cursor-pointer transition flex flex-col justify-between h-28 relative overflow-hidden group";
+        item.onclick = () => openTierSelection(index);
+        
+        let subText = tpl.tiers.length > 1 ? `${tpl.tiers.length} pakker` : `${tpl.tiers[0].price} ${currencySymbols[tpl.tiers[0].currency]}`;
+
+        item.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div class="text-2xl">${tpl.emoji}</div>
+            <div class="bg-neonGreen/10 border border-neonGreen/20 group-hover:bg-neonGreen group-hover:text-spaceBlack text-neonGreen rounded-full p-1 transition">
+              <i data-lucide="zap" class="w-3 h-3 fill-current"></i>
+            </div>
+          </div>
+          <div>
+            <h4 class="font-bold text-sm text-white group-hover:text-neonGreen transition">${tpl.title}</h4>
+            <p class="text-xs text-slate-400">${subText}</p>
+          </div>
+        `;
+        quickAddGrid.appendChild(item);
+      });
+      lucide.createIcons();
+    }
+
+    function openTierSelection(index) {
+      selectedTemplateIndex = index;
+      const tpl = quickAddTemplates[index];
+      const header = document.getElementById('tierModalHeader');
+      const container = document.getElementById('tierOptionsContainer');
+      
+      header.innerHTML = `
+        <div class="text-4xl mb-2">${tpl.emoji}</div>
+        <h3 class="text-lg font-bold text-white">Velg din pakke for ${tpl.title}</h3>
+        <p class="text-xs text-slate-400">Nøyaktig hvilken versjon betaler du for?</p>
+      `;
+
+      container.innerHTML = '';
+      tpl.tiers.forEach((tier, tIdx) => {
+        const btn = document.createElement('button');
+        btn.className = "w-full bg-spaceBlack hover:bg-slate-800 border border-slate-700 hover:border-neonGreen text-left p-3.5 rounded-xl transition flex justify-between items-center group";
+        btn.onclick = () => fillFormFromTier(tIdx);
+
+        let priceText = tier.currency === 'NOK' ? `${tier.price} kr` : `${currencySymbols[tier.currency]}${tier.price}`;
+
+        btn.innerHTML = `
+          <div>
+            <span class="block text-sm font-bold text-white group-hover:text-neonGreen transition">${tier.name}</span>
+            <span class="block text-[11px] text-slate-500">${tier.interval}</span>
+          </div>
+          <div class="text-right font-black text-white text-sm">${priceText}</div>
+        `;
+        container.appendChild(btn);
+      });
+
+      tierModal.classList.remove('hidden');
+    }
+
+    function closeTierModal() { tierModal.classList.add('hidden'); selectedTemplateIndex = null; }
+
+    function fillFormFromTier(tierIndex) {
+      if (selectedTemplateIndex === null) return;
+      const tpl = quickAddTemplates[selectedTemplateIndex];
+      const tier = tpl.tiers[tierIndex];
+
+      closeTierModal();
+      openModal();
+
+      document.getElementById('subTitle').value = `${tpl.title} (${tier.name})`;
+      document.getElementById('subPrice').value = tier.price;
+      document.getElementById('subCurrency').value = tier.currency;
+      document.getElementById('subCategory').value = tpl.category;
+      document.getElementById('subInterval').value = tier.interval;
+      document.getElementById('subNotes').value = tier.notes;
+    }
+
+    function updateFormFields() {
+      const type = document.querySelector('input[name="subType"]:checked').value;
+      const intervalWrapper = document.getElementById('intervalWrapper');
+      const dateLabel = document.getElementById('dateLabel');
+      if (type === 'Fast') { intervalWrapper.classList.remove('hidden'); dateLabel.innerText = "Neste trekkdato"; }
+      else { intervalWrapper.classList.add('hidden'); dateLabel.innerText = type === 'Prøveperiode' ? "Prøveperiode utløper" : "Utløpsdato / Fornyelsesfrist"; }
+    }
+
+    function calculateDaysRemaining(dateString, interval, type) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      let targetDate = new Date(dateString); targetDate.setHours(0,0,0,0);
+      if (type === 'Fast') {
+        while (targetDate < today) {
+          if (interval === 'Årlig') targetDate.setFullYear(targetDate.getFullYear() + 1);
+          else targetDate.setMonth(targetDate.getMonth() + 1);
+        }
+      }
+      return Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+    }
+
+    function renderAchievements(totalMonthly) {
+      const hasStudent = subscriptions.some(sub => sub.title.toLowerCase().includes('student') || sub.title.includes('🎓'));
+      const hasShared = subscriptions.some(sub => sub.sharedWith && sub.sharedWith.trim() !== '');
+      const highRegretCount = subscriptions.filter(sub => parseInt(sub.regretLevel) >= 4).length;
+      const hasTrialUrgent = subscriptions.some(sub => sub.type === 'Prøveperiode' && calculateDaysRemaining(sub.nextDate, sub.interval, sub.type) <= 3 && calculateDaysRemaining(sub.nextDate, sub.interval, sub.type) >= 0);
+
+      const badges = [
+        {
+          id: 'gjerrigknark',
+          title: 'Gjerrigknark-Sertifikat',
+          desc: 'Ha 0 kr i løpende utgifter. Absolutt fullstendig frihet!',
+          emoji: '🛡️',
+          unlocked: totalMonthly === 0 && subscriptions.length > 0
+        },
+        {
+          id: 'student_snik',
+          title: 'Student-Sniken',
+          desc: 'Registrer minst ett studenttilbud for å snyte systemet.',
+          emoji: '🎓',
+          unlocked: hasStudent
+        },
+        {
+          id: 'spleise_sjef',
+          title: 'Sosialistisk Sparing',
+          desc: 'Dele regningen med noen andre via Vipps-funksjonen.',
+          emoji: '🤝',
+          unlocked: hasShared
+        },
+        {
+          id: 'farlig_liv',
+          title: 'Lever på kanten ⏰',
+          desc: 'Ha en gratis prøveperiode som utløper om under 3 dager.',
+          emoji: '🔥',
+          unlocked: hasTrialUrgent
+        },
+        {
+          id: 'angre_mester',
+          title: 'Kognitiv Dissonans',
+          desc: 'Ha 2 eller flere aktive avtaler med Angre-skala på 4 eller 5.',
+          emoji: '💔',
+          unlocked: highRegretCount >= 2
+        },
+        {
+          id: 'direktor_sponsor',
+          title: 'Direktørens Gull-Sponsor',
+          desc: 'Svi av over 1000 kr i måneden. Direktøren takker deg for ny yacht.',
+          emoji: '🛥️',
+          unlocked: totalMonthly > 1000
+        }
+      ];
+
+      achievementsGrid.innerHTML = '';
+      badges.forEach(b => {
+        const card = document.createElement('div');
+        if (b.unlocked) {
+          card.className = "bg-slateDark border border-neonGreen/30 p-3.5 rounded-xl flex items-center gap-4 shadow-[inset_0_1px_2px_rgba(255,255,255,0.05)] transition";
+          card.innerHTML = `
+            <div class="text-2xl bg-neonGreen/10 border border-neonGreen/20 p-2.5 rounded-xl text-neonGreen">${b.emoji}</div>
+            <div>
+              <h4 class="font-bold text-sm text-white flex items-center gap-2">${b.title} <span class="text-[9px] font-black uppercase bg-neonGreen/20 text-neonGreen px-1.5 py-0.5 rounded tracking-wide">Opplåst</span></h4>
+              <p class="text-xs text-slate-400 mt-0.5">${b.desc}</p>
+            </div>
+          `;
+        } else {
+          card.className = "bg-slateDark/30 border border-slate-900 p-3.5 rounded-xl flex items-center gap-4 opacity-40 grayscale select-none";
+          card.innerHTML = `
+            <div class="text-2xl bg-spaceBlack border border-slate-800 p-2.5 rounded-xl">🔒</div>
+            <div>
+              <h4 class="font-bold text-sm text-slate-500">${b.title}</h4>
+              <p class="text-xs text-slate-600 mt-0.5">${b.desc}</p>
+            </div>
+          `;
+        }
+        achievementsGrid.appendChild(card);
+      });
+    }
+
+    function updateDashboard() {
+      let totalMonthly = 0;
+      let catExpenses = { Underholdning: 0, Trening: 0, Teknologi: 0, Nyheter: 0, Annet: 0 };
+
+      subscriptions.forEach(sub => {
+        let price = parseFloat(sub.price) || 0;
+        let currency = sub.currency || 'NOK';
+        let priceInNOK = price * (exchangeRates[currency] || 1);
+        
+        let cat = sub.category || 'Annet';
+        if (!catExpenses.hasOwnProperty(cat)) catExpenses[cat] = 0;
+
+        if (sub.type === 'Fast') {
+          let monthlyPrice = sub.interval === 'Årlig' ? priceInNOK / 12 : priceInNOK;
+          totalMonthly += monthlyPrice;
+          catExpenses[cat] += monthlyPrice;
+        } else {
+          catExpenses[cat] += priceInNOK;
+        }
+      });
+
+      monthlyShockTitle.innerHTML = `Du svir av <span class="text-neonPink text-2xl font-black">${Math.round(totalMonthly)}</span> kr hver måned! 💸`;
+      yearlyShockSub.innerHTML = `Det blir <span class="text-neonGreen font-semibold">${Math.round(totalMonthly * 12)}</span> kr i året. Sponsar du direktørene?`;
+      subCountBadge.innerText = `${subscriptions.length} aktive`;
+
+      if (budgetCap > 0 && totalMonthly > budgetCap) {
+        shockCard.className = "bg-gradient-to-br from-red-950 to-slate-900 border-2 border-neonPink p-5 rounded-2xl shadow-2xl mb-6 relative overflow-hidden animate-alert-flash";
+        budgetAlertHeader.classList.remove('hidden');
+      } else {
+        shockCard.className = "bg-gradient-to-br from-slateDark to-slate-900 border border-slate-800 p-5 rounded-2xl shadow-2xl mb-6 relative overflow-hidden";
+        budgetAlertHeader.classList.add('hidden');
+      }
+
+      let statusText = "Økonomisk Geni 🧠✨";
+      let statusClass = "border-neonGreen text-neonGreen";
+
+      if (subscriptions.length > 0) {
+        if (catExpenses['Trening'] > catExpenses['Underholdning']) { statusText = "Sponser treningssenteret anonymt 🏋️💀"; statusClass = "border-amber-500 text-amber-500"; }
+        else if (catExpenses['Underholdning'] > 150) { statusText = "Sofagris-mester 🛋️👑"; statusClass = "border-neonPink text-neonPink"; }
+        else { statusText = "Budsjett-Kjemper ⚔️🔥"; statusClass = "border-blue-400 text-blue-400"; }
+      }
+      userStatusBadge.className = `inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border bg-slateDark ${statusClass}`;
+      userStatusBadge.innerText = statusText;
+
+      renderAchievements(totalMonthly);
+    }
+
+    function renderTimeline() {
+      timelineContainer.innerHTML = '';
+      if (subscriptions.length === 0) {
+        timelineContainer.innerHTML = `<div class="text-center py-12 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl"><p class="text-sm">Ingen løpende utgifter registrert!</p></div>`;
+        return;
+      }
+
+      const sortedSubs = subscriptions.map(sub => ({
+        ...sub,
+        daysLeft: calculateDaysRemaining(sub.nextDate, sub.interval, sub.type)
+      })).sort((a, b) => a.daysLeft - b.daysLeft);
+
+      sortedSubs.forEach(sub => {
+        const isTrial = sub.type === 'Prøveperiode';
+        const isUrgentTrial = isTrial && sub.daysLeft <= 3 && sub.daysLeft >= 0;
+        const currentCurrency = sub.currency || 'NOK';
+        const regret = parseInt(sub.regretLevel) || 3;
+        const priceInNOK = sub.price * (exchangeRates[currentCurrency] || 1);
+        const shouldGlow = regret >= 4 && priceInNOK > 150;
+
+        let countdownText = `${sub.daysLeft} dager igjen`;
+        if (sub.daysLeft === 0) countdownText = "I dag! 🚨";
+        if (sub.daysLeft === 1) countdownText = "I morgen! 🚨";
+        if (sub.daysLeft < 0) countdownText = isTrial ? "Utløpt! Sjekk konto! 💸" : "Forfalt / Utløpt";
+
+        let emoji = "📦";
+        const titleLower = sub.title.toLowerCase();
+        if (sub.category === 'Underholdning' || titleLower.includes('netflix') || titleLower.includes('spotify') || titleLower.includes('disney') || titleLower.includes('youtube')) emoji = "🎬";
+        if (sub.category === 'Trening' || titleLower.includes('sats') || titleLower.includes('evo') || titleLower.includes('fresh')) emoji = "🏋️";
+        if (sub.category === 'Teknologi' || titleLower.includes('icloud') || titleLower.includes('chatgpt') || titleLower.includes('adobe')) emoji = "☁️";
+        if (sub.category === 'Nyheter' || titleLower.includes('vg')) emoji = "📰";
+
+        let priceDisplay = currentCurrency === 'NOK' ? `${sub.price} kr` : `${currencySymbols[currentCurrency]}${sub.price}`;
+        let nokEquivalentMarkup = currentCurrency !== 'NOK' ? `<span class="text-[10px] text-slate-500 block font-mono">ca. ${Math.round(priceInNOK)} kr</span>` : '';
+
+        const card = document.createElement('div');
+        if (shouldGlow) card.className = "bg-slateDark border p-4 rounded-xl shadow-lg relative cursor-pointer animate-cyber-glow";
+        else if (isUrgentTrial || sub.daysLeft < 0) card.className = "bg-slateDark border-2 border-neonPink animate-pulse-fast p-4 rounded-xl shadow-lg relative cursor-pointer";
+        else card.className = "bg-slateDark border border-slate-800 p-4 rounded-xl shadow-lg relative cursor-pointer hover:border-slate-700";
+
+        const sharedBadge = sub.sharedWith ? `<div class="mt-1 text-xs text-amber-400 font-semibold flex items-center gap-1"><i data-lucide="users" class="w-3 h-3"></i> Spleises med: ${sub.sharedWith}</div>` : '';
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between" onclick="toggleExpand('${sub.id}', event)">
+            <div class="flex items-center gap-3">
+              <div class="text-2xl">${emoji}</div>
+              <div>
+                <h4 class="font-bold text-white text-base flex items-center gap-1.5">
+                  ${sub.title} ${shouldGlow ? '<span class="text-[10px] text-neonPink uppercase bg-neonPink/10 px-1 rounded animate-pulse">Angre-alarm 💀</span>' : ''}
+                </h4>
+                <p class="text-xs text-slate-400">${sub.category} • ${sub.interval}</p>
+                ${sharedBadge}
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="font-extrabold text-white">${priceDisplay}</div>
+              ${nokEquivalentMarkup}
+              <span class="text-xs ${sub.daysLeft <= 3 || shouldGlow ? 'text-neonPink' : 'text-neonGreen'} font-medium block mt-0.5">
+                ${countdownText}
+              </span>
+            </div>
+          </div>
+
+          <div id="expand-${sub.id}" class="hidden mt-4 pt-4 border-t border-slate-800 flex flex-col gap-3">
+            <div class="grid grid-cols-2 gap-2 text-xs bg-spaceBlack p-2.5 rounded-lg text-slate-300">
+              <div><span class="text-slate-500 block">Angre-nivå:</span> 💔 ${regret}/5</div>
+              <div><span class="text-slate-500 block">Oppsigelsesvei:</span> <span id="notes-${sub.id}"></span></div>
+            </div>
+            <div class="flex gap-2">
+              ${sub.sharedWith ? `<button onclick="copyVippsText('${sub.id}')" class="flex-1 bg-amber-500 text-spaceBlack font-bold text-xs py-2 px-3 rounded-lg transition uppercase flex items-center justify-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> Vipps-krav 📱</button>` : ''}
+              <button onclick="triggerPanicButton('${sub.id}')" class="flex-1 bg-gradient-to-r from-red-600 to-neonPink text-white font-bold text-xs py-2 px-3 rounded-lg transition uppercase">Panikk 🏃‍♂️</button>
+              <button onclick="openModal('${sub.id}')" class="bg-slate-800 text-slate-300 p-2 rounded-lg border border-slate-700"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+              <button onclick="openConfirmModal('${sub.id}')" class="bg-slate-800 text-neonPink p-2 rounded-lg border border-slate-700"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+        `;
+        timelineContainer.appendChild(card);
+        document.getElementById(`notes-${sub.id}`).textContent = sub.notes ? sub.notes : "Ingen lagret rute ut av avtalen.";
+      });
+      lucide.createIcons();
+    }
+
+    function toggleExpand(id, event) { if (!event.target.closest('button')) document.getElementById(`expand-${id}`).classList.toggle('hidden'); }
+
+    function copyVippsText(id) {
+      const sub = subscriptions.find(s => s.id === id); if (!sub) return;
+      let halfPrice = Math.round((parseFloat(sub.price) || 0) / 2);
+      let cur = sub.currency === 'NOK' ? 'kr' : sub.currency;
+      const message = `Hei ${sub.sharedWith}! Direktøren for ${sub.title} lopper meg for penger. Vipps meg din del på ${halfPrice} ${cur} for denne måneden før de kutter linja ware! ⚡🤖`;
+      navigator.clipboard.writeText(message).then(() => alert(`💥 Vipps-krav kopiert for ${sub.sharedWith}!`));
+    }
+
+    function triggerPanicButton(id) { const sub = subscriptions.find(s => s.id === id); if (sub) alert(`🚨 PANIKK-TIPS FOR ${sub.title.toUpperCase()}:\n\n${sub.notes || 'Finn oppsigelsesknappen før kontoen tømmes på nytt!'}`); }
+
+    function runUsageCheck() {
+      if (subscriptions.length === 0) return alert("Ingen aktive sluk å sjekke.");
+      let sub = subscriptions[0];
+      let priceInNOK = Math.round(sub.price * (exchangeRates[sub.currency] || 1) * 3);
+      alert(`Bruks-sjekk: Du har gitt ca. ${priceInNOK} kr til ${sub.title} de siste 90 dagene. Er du sikker på at du ikke blir svindlet av latskapen? 😈`);
+    }
+
+    function openModal(id = null) {
+      if (id) {
+        editingSubId = id;
+        modalTitle.innerHTML = `<i data-lucide="pencil" class="w-5 h-5 text-cyan-400"></i> Rediger Avtale`;
+        const sub = subscriptions.find(s => s.id === id);
+        if (sub) {
+          document.getElementById('subTitle').value = sub.title;
+          document.getElementById('subPrice').value = sub.price;
+          document.getElementById('subCurrency').value = sub.currency || 'NOK';
+          document.getElementById('subCategory').value = sub.category || 'Annet';
+          document.getElementById('subInterval').value = sub.interval === 'Én gang' || sub.interval === 'Prøveperiode' ? 'Månedlig' : sub.interval;
+          document.getElementById('subDate').value = sub.nextDate;
+          document.getElementById('subDiscount').value = sub.discount || '';
+          document.getElementById('subNotes').value = sub.notes || '';
+          document.getElementById('subRegret').value = sub.regretLevel || 3;
+          document.getElementById('regretVal').innerText = sub.regretLevel || 3;
+          document.getElementById('subSharedWith').value = sub.sharedWith || '';
+          document.getElementsByName('subType').forEach(r => { if (r.value === sub.type) r.checked = true; });
+        }
+      } else {
+        editingSubId = null;
+        modalTitle.innerHTML = `<i data-lucide="plus-circle" class="w-5 h-5 text-neonGreen"></i> Nytt Abonnement`;
+        subForm.reset();
+        document.getElementById('subCurrency').value = 'NOK';
+        document.getElementById('subDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('subRegret').value = 3;
+        document.getElementById('regretVal').innerText = 3;
+      }
+      updateFormFields(); lucide.createIcons(); subModal.classList.remove('hidden');
+    }
+
+    function closeModal() { subModal.classList.add('hidden'); editingSubId = null; }
+    function openConfirmModal(id) { subToDeleteId = id; customConfirmModal.classList.remove('hidden'); }
+    function closeConfirmModal() { customConfirmModal.classList.add('hidden'); subToDeleteId = null; }
+
+    function executeDelete() {
+      if (subToDeleteId) { subscriptions = subscriptions.filter(sub => sub.id !== subToDeleteId); localStorage.setItem('substop_subscriptions', JSON.stringify(subscriptions)); updateDashboard(); renderTimeline(); }
+      closeConfirmModal();
+    }
+
+    function saveSubscription(e) {
+      e.preventDefault();
+      const type = document.querySelector('input[name="subType"]:checked').value;
+      let interval = document.getElementById('subInterval').value;
+      if (type === 'Engangs') interval = 'Én gang';
+      if (type === 'Prøveperiode') interval = 'Prøveperiode';
+
+      const subData = {
+        title: document.getElementById('subTitle').value,
+        price: parseFloat(document.getElementById('subPrice').value),
+        currency: document.getElementById('subCurrency').value,
+        category: document.getElementById('subCategory').value,
+        interval: interval,
+        nextDate: document.getElementById('subDate').value,
+        type: type,
+        discount: document.getElementById('subDiscount').value,
+        notes: document.getElementById('subNotes').value,
+        regretLevel: document.getElementById('subRegret').value,
+        sharedWith: document.getElementById('subSharedWith').value
+      };
+
+      if (editingSubId) { const idx = subscriptions.findIndex(sub => sub.id === editingSubId); if (idx !== -1) subscriptions[idx] = { ...subscriptions[idx], ...subData }; }
+      else { subscriptions.push({ id: 'sub_' + Date.now(), ...subData, createdAt: Date.now() }); }
+
+      localStorage.setItem('substop_subscriptions', JSON.stringify(subscriptions));
+      closeModal(); updateDashboard(); renderTimeline();
+    }
+
+    function saveBudgetCap() {
+      const val = parseFloat(document.getElementById('budgetCapInput').value);
+      budgetCap = isNaN(val) || val < 0 ? 0 : val;
+      localStorage.setItem('substop_budget_cap', budgetCap);
+      updateDashboard();
+      alert(`🎯 Budsjett-vakt satt til ${budgetCap > 0 ? budgetCap + ' kr' : 'ubegrenset'}.`);
+    }
+
+    function exportData() {
+      const exportObject = { subscriptions: subscriptions, budgetCap: budgetCap };
+      const jsonString = btoa(JSON.stringify(exportObject));
+      navigator.clipboard.writeText(jsonString).then(() => {
+        alert("🔒 Backup-kode kopiert til utklippstavlen!");
+      }).catch(() => { alert("Kunne ikke kopiere. Streng:\n\n" + jsonString); });
+    }
+
+    function importData() {
+      const input = prompt("Lim inn din krypterte SubStop backup-kode her:");
+      if (!input) return;
+      try {
+        const decoded = JSON.parse(atob(input.trim()));
+        if (decoded.subscriptions) {
+          subscriptions = decoded.subscriptions;
+          budgetCap = decoded.budgetCap || 0;
+          localStorage.setItem('substop_subscriptions', JSON.stringify(subscriptions));
+          localStorage.setItem('substop_budget_cap', budgetCap);
+          document.getElementById('budgetCapInput').value = budgetCap > 0 ? budgetCap : '';
+          updateDashboard(); renderTimeline();
+          alert("🎉 Dataene dine er gjenopprettet.");
+        } else { alert("Feil format."); }
+      } catch (err) { alert("Kunne ikke lese koden."); }
+    }
+
+    // Registrering av Service Worker for PWA-installasjon på hjemskjerm
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('Service Worker registrert suksessfullt!', reg.scope))
+          .catch(err => console.log('Service Worker registrering feilet:', err));
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (budgetCap > 0) document.getElementById('budgetCapInput').value = budgetCap;
+      updateDashboard(); renderTimeline(); renderQuickAddTemplates(); 
+    });
+  </script>
+</body>
+</html>
